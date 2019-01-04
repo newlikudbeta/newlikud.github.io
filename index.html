@@ -1,10 +1,24 @@
 <html>
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8">
     <!-- Latest compiled and minified CSS -->
-    <link rel="stylesheet" href="bootstrap.min.css">
+    <link rel="stylesheet" href="bootstrap.rtl.full.min.css">
     <link rel="stylesheet" href="font-awesome.min.css"/>
+    <link href="https://gitcdn.github.io/bootstrap-toggle/2.2.2/css/bootstrap-toggle.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.8.0/css/bootstrap-datepicker3.min.css" rel="stylesheet">
 
+    <script src="datepickers.js"></script>
+    <script src="web-form.js"></script>
+    <script src="form-validation.js"></script>
+    <script src="dataUtils.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://gitcdn.github.io/bootstrap-toggle/2.2.2/js/bootstrap-toggle.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@2.3.2/dist/signature_pad.min.js"></script>
     <script src="jspdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@2.3.2/dist/signature_pad.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.8.0/js/bootstrap-datepicker.min.js"></script>
 
     <link href="https://fonts.googleapis.com/css?family=Pangolin" rel="stylesheet">
 
@@ -80,7 +94,7 @@
             src: url('Einat4-Regular.woff') format('woff');
         }
 
-       @font-face {
+        @font-face {
             font-family: 'Einat5';
             src: url('Einat5-Regular.woff') format('woff');
         }
@@ -114,6 +128,17 @@
 
         html {
             direction: rtl;
+        }
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        body {
+            position: relative;
+        }
+
+        canvas.field-form {
+            background-color: rgba(0, 0, 0, 0.1);
         }
 
         #form-wrapper {
@@ -158,1027 +183,1190 @@
         }
 
 
-        .btn-primary {
+        #save-button {
             padding:10px 50px;
             font-size:24px;
+        }
+
+        .double-form-only {
+            display: none;
+        }
+
+        .help-block {
+            display: none;
+        }
+
+        .datepicker {
+            direction: rtl;
         }
 
     </style>
 
     <script>
+      var isDebug = false;
+      var useValidations = true;
+      var hideNonLikud = false;
+      var hideLikud = false;
+      var hideDoubleForm = true;
+      var editedDatesNames = [];
+      var POSSIBLE_PENS = [
+        "rgb(66, 133, 244)",
+        "rgb(0, 67, 175)",
+        "rgb(44, 28, 76)",
+        "rgb(0, 0, 0)",
+        "rgb(0, 0, 0)",
+        "rgb(0, 0, 0)",
+        "rgb(0, 0, 0)",
+        "rgb(0, 0, 0)",
+        "rgb(0, 0, 0)",
+        "rgb(0, 0, 0)"];
+      var penColor = POSSIBLE_PENS[Math.floor(Math.random() * POSSIBLE_PENS.length)];
 
-        function Pad(element) {
-            this.canvas = element;
-            this.flag = false;
-            this.dot_flag = false;
-            this.prevX = 0;
-            this.currX = 0;
-            this.prevY = 0;
-            this.currY = 0;
+
+      var fields = [
+        {
+          "name": "date",
+          "heb": "תאריך",
+          "type": "input",
+          "autoField": TODAY_STR,
+          "x": 30,
+          "y": 120,
+          "size": 24,
+          "width": 140,
+          "randomFont": true
+
+        },
+
+        {
+          "name": "id",
+          "heb": "תעודת זהות",
+          "type": "input",
+          "title": "פרטי החבר",
+          "x": 790,
+          "y": 355,
+          "size": 24,
+          "width": 280,
+          // AT - this is the correct size (font width : 600)
+          "spacing": 16,
+          "special":true,
+          "randomFont": true,
+          "validationType": "number"
+
+        },
+        {
+          "name": "family_name",
+          "heb": "שם משפחה",
+          "type": "input",
+          "x": 400,
+          "y": 355,
+          "size": 24,
+          "width": 280,
+          // AT - this is the correct size for text (font width : 900)
+          "spacing": 2,
+          "randomFont": true
+
+        },
+        {
+          "name": "first_name",
+          "heb": "שם פרטי",
+          "type": "input",
+          "x": 30,
+          "y": 355,
+          "size": 24,
+          "width": 280,
+          // AT - this is the correct size for text (font width : 900)
+          "spacing": 2,
+          "randomFont": true
+
+        },
+        {
+          "name": "father_name",
+          "heb": "שם האב",
+          "type": "input",
+          "x": 885,
+          "y": 420,
+          "size": 24,
+          "width": 162,
+          "likudOnly":true,
+          "randomFont": true
+
+        },
+        {
+          "name": "dob_day",
+          "partOfDate": "dob",
+          "heb": "תאריך לידה (יום בחודש)",
+          "type": "input",
+          "x": 700,
+          "y": 420,
+          "size": 24,
+          "width": 28,
+          "likudOnly":true,
+          "randomFont": true
+
+
+        },
+        {
+          "name": "dob_month",
+          "partOfDate": "dob",
+          "heb": "תאריך לידה (חודש בשנה)",
+          "type": "input",
+          "x": 730,
+          "y": 420,
+          "size": 24,
+          "width": 28,
+          "likudOnly":true,
+          "randomFont": true
+
+        },
+        {
+          "name": "dob_year",
+          "partOfDate": "dob",
+          "heb": "תאריך לידה",
+          "type": "input",
+          "x": 760,
+          "y": 420,
+          "size": 24,
+          "width": 28,
+          "likudOnly":true,
+          "randomFont": true
+        },
+        {
+          "name": "homeland",
+          "heb": "ארץ לידה",
+          "type": "input",
+          "x": 200,
+          "y": 420,
+          "size": 24,
+          "width": 140,
+          "likudOnly":true,
+          "randomFont": true
+
+        },
+        {
+          "name": "immigration_year",
+          "heb": "שנת עלייה",
+          "allowEmpty": true,
+          "type": "input",
+          "x": 30,
+          "y": 420,
+          "size": 24,
+          "width": 80,
+          "likudOnly":true,
+          "randomFont": true
+
+        },
+
+        {
+          "name": "address",
+          "heb": "כתובת",
+          "type": "input",
+          "x": 605,
+          "y": 485,
+          "size": 24,
+          "width": 440,
+          "likudOnly":true,
+          "randomFont": true
+
+        },
+
+        {
+          "name": "city",
+          "heb": "עיר",
+          "type": "input",
+          "x": 305,
+          "y": 485,
+          "size": 24,
+          "width": 240,
+          "likudOnly":true,
+          "randomFont": true
+
+        },
+
+        {
+          "name": "zip",
+          "heb": "מיקוד",
+          "type": "input",
+          "x": 40,
+          "y": 485,
+          "size": 24,
+          "width": 180,
+          "special":true,
+          "randomFont": true,
+          "likudOnly":true,
+          "validationType": "number"
+        },
+
+        {
+          "name": "mobile_phone",
+          "heb": "טלפון נייד",
+          "type": "input",
+          "x": 800,
+          "y": 546,
+          "size": 24,
+          "width": 200,
+          // AT - this is the correct size for phone (font width : 600)
+          "spacing": 5,
+          "randomFont": true
+
+
+        },
+        {
+          "name": "work_phone",
+          "heb": "טלפון בעבודה",
+          "allowEmpty": true,
+          "type": "input",
+          "x": 420,
+          "y": 546,
+          "size": 24,
+          "width": 200,
+          // AT - this is the correct size for phone (font width : 600)
+          "spacing": 5,
+          "likudOnly":true,
+          "randomFont": true
+
+        },
+
+        {
+          "name": "home_phone",
+          "heb": "טלפון בבית",
+          "allowEmpty": true,
+          "type": "input",
+          "x": 80,
+          "y": 546,
+          "size": 24,
+          "width": 200,
+          // AT - this is the correct size for phone (font width : 600)
+          "spacing": 5,
+          "likudOnly":true,
+          "randomFont": true
+
+        },
+
+        //lach only
+        {
+          "name": "who_sent_you",
+          "heb": "מי הביא אותך לכאן? (שם של חבר)",
+          "allowEmpty": false,
+          "type": "input",
+          "size": 24,
+          "width": 90,
+          // AT 30-12-2017 date should be with less space
+          "spacing": 5,
+          "special":true,
+          "randomFont": true,
+          "nonLikudField" : true
+        },
+
+        //lach only
+        {
+          "name": "facebook_profile_url",
+          "heb": "לינק לפרופיל הפייסבוק שלך",
+          "allowEmpty": true,
+          "type": "input",
+          "size": 24,
+          "width": 90,
+          // AT 30-12-2017 date should be with less space
+          "spacing": 5,
+          "nonLikudField" : true
+        },
+
+        {
+          "name": "email_provider",
+          "heb": "דואר אלקטרוני",
+          "type": "input",
+          "part": "emailProvider",
+          "x": 600,
+          "y": 614,
+          "size": 24,
+          "width": 300,
+          "align": "left",
+          // AT 30-12-2017 add ame font to mail
+          "randomFont": true
+
+        },
+
+        {
+          "name": "email_username",
+          "heb": "דואר אלקטרוני",
+          "type": "input",
+          "part": "emailUsername",
+          "x": 315,
+          "y": 614,
+          "size": 24,
+          "width": 237,
+          // AT 30-12-2017 add ame font to mail
+          "randomFont": true
+
+        },
+
+        {
+          "name": "signature",
+          "heb": "חתימה",
+          "type": "signature",
+          "x": 40,
+          "y": 584,
+          "size": 95,
+          "likudOnly":true,
+          "width": 200,
+
+        },
+
+        {
+          "name": "status",
+          "heb": "מצב משפחתי (הקף בעיגול עם העכבר או אצבע)",
+          "type": "signature",
+          "mark": "o",
+          "x": 527,
+          "y": 420,
+          "size": 35,
+          "width": 69,
+          "likudOnly":true,
+        },
+        {
+          "name": "gender",
+          "heb": "מין (צייר v עם העכבר או אצבע)",
+          "type": "signature",
+          "mark": "x",
+          "x": 430,
+          "y": 420,
+          "size": 40,
+          "width": 65,
+          "likudOnly":true,
+
+        },
+        {
+          "name": "spouse_id",
+          "heb": "תעודת זהות בן/בת זוג",
+          "type": "input",
+          "title": "פרטי בן/בת הזוג",
+          "x": 790,
+          "y": 755,
+          "size": 24,
+          "width": 280,
+          "spacing": 19,
+          "special":true,
+          "randomFont": true,
+          "doubleFormOnly": true
+        },
+        {
+          "name": "spouse_family_name",
+          "heb": "שם משפחה בן/בת זוג",
+          "type": "input",
+          "x": 400,
+          "y": 755,
+          "size": 24,
+          "width": 280,
+          "randomFont": true,
+          "doubleFormOnly": true
+        },
+        {
+          "name": "spouse_first_name",
+          "heb": "שם פרטי בן/בת זוג",
+          "type": "input",
+          "x": 30,
+          "y": 755,
+          "size": 24,
+          "width": 280,
+          "randomFont": true,
+          "doubleFormOnly": true
+        },
+        {
+          "name": "spouse_father_name",
+          "heb": "שם אב בן/בת זוג",
+          "type": "input",
+          "x": 885,
+          "y": 820,
+          "size": 24,
+          "width": 162,
+          "randomFont": true,
+          "likudOnly":true,
+          "doubleFormOnly": true
+        },
+        {
+          "name": "spouse_dob_day",
+          "partOfDate": "spouse_dob",
+          "heb": "תאריך לידה (יום בחודש) בן/בת זוג",
+          "type": "input",
+          "x": 700,
+          "y": 820,
+          "size": 24,
+          "width": 28,
+          "randomFont": true,
+          "likudOnly":true,
+          "doubleFormOnly": true
+
+        },
+        {
+          "name": "spouse_dob_month",
+          "partOfDate": "spouse_dob",
+          "heb": "תאריך לידה (חודש בשנה) בן/בת זוג",
+          "type": "input",
+          "x": 730,
+          "y": 820,
+          "size": 24,
+          "width": 28,
+          "randomFont": true,
+          "likudOnly":true,
+          "doubleFormOnly": true
+
+        },
+        {
+          "name": "spouse_dob_year",
+          "partOfDate": "spouse_dob",
+          "heb": "תאריך לידה בן/בת זוג",
+          "type": "input",
+          "x": 760,
+          "y": 820,
+          "size": 24,
+          "width": 28,
+          "randomFont": true,
+          "doubleFormOnly": true,
+          "likudOnly":true,
+
+        },
+        {
+          "name": "spouse_homeland",
+          "heb": "ארץ לידה בן/בת זוג",
+          "type": "input",
+          "x": 200,
+          "y": 820,
+          "size": 24,
+          "width": 140,
+          "randomFont": true,
+          "doubleFormOnly": true,
+          "likudOnly":true,
+        },
+        {
+          "name": "spouse_immigration_year",
+          "heb": "שנת עלייה בן/בת זוג",
+          "allowEmpty": true,
+          "type": "input",
+          "x": 30,
+          "y": 820,
+          "size": 24,
+          "width": 80,
+          "randomFont": true,
+          "doubleFormOnly": true,
+          "likudOnly":true,
+        },
+
+        {
+          "name": "spouse_mobile_phone",
+          "heb": "טלפון נייד בן/בת זוג",
+          "type": "input",
+          "x": 800,
+          "y": 886,
+          "size": 24,
+          "width": 200,
+          // AT - this is the correct size for phone (font width : 600)
+          "spacing": 5,
+          "randomFont": true,
+          "doubleFormOnly": true
+        },
+        {
+          "name": "spouse_work_phone",
+          "heb": "טלפון בעבודה בן/בת זוג",
+          "allowEmpty": true,
+          "type": "input",
+          "x": 420,
+          "y": 886,
+          "size": 24,
+          "width": 200,
+          // AT - this is the correct size for phone (font width : 600)
+          "spacing": 5,
+          "randomFont": true,
+          "doubleFormOnly": true,
+          "likudOnly":true,
+        },
+
+        {
+          "name": "spouse_home_phone",
+          "heb": "טלפון בבית בן/בת זוג",
+          "type": "input",
+          "x": 80,
+          "y": 886,
+          "size": 24,
+          "width": 200,
+          // AT - this is the correct size for phone (font width : 600)
+          "spacing": 5,
+          "randomFont": true,
+          "doubleFormOnly": true,
+          "likudOnly":true,
+          "allowEmpty": true
+        },
+
+        //lach only
+        {
+          "name": "spouse_facebook_profile_url",
+          "heb": "לינק לפרופיל הפייסבוק של בן/בת זוג",
+          "type": "input",
+          "allowEmpty": true,
+          "size": 24,
+          "width": 90,
+          // AT 30-12-2017 date should be with less space
+          "spacing": 5,
+          "special":true,
+          "randomFont": true,
+          "nonLikudField" : true,
+          "doubleFormOnly": true
+        },
+
+        {
+          "name": "spouse_email_provider",
+          "heb": "דואר אלקטרוני בן/בת זוג",
+          "type": "input",
+          "part": "emailProvider",
+          "x": 600,
+          "y": 946,
+          "size": 24,
+          "width": 300,
+          "align": "left",
+          // AT 30-12-2017 add random font to mail
+          "randomFont": true,
+          "doubleFormOnly": true
+        },
+
+        {
+          "name": "spouse_email_username",
+          "heb": "דואר אלקטרוני בן/בת זוג",
+          "type": "input",
+          "part": "emailUsername",
+          "x": 315,
+          "y": 946,
+          "size": 24,
+          "width": 237,
+          // AT 30-12-2017 add random font to mail
+          "randomFont": true,
+          "doubleFormOnly": true
+        },
+
+        {
+          "name": "spouse_signature",
+          "heb": "חתימת בן/בת זוג",
+          "type": "signature",
+          "x": 40,
+          "y": 916,
+          "size": 95,
+          "width": 200,
+          "doubleFormOnly": true
+        },
+        {
+          "name": "spouse_status",
+          "heb": "מצב משפחתי בן/בת זוג",
+          "type": "signature",
+          "mark": "o",
+          "x": 527,
+          "y": 820,
+          "size": 35,
+          "width": 69,
+          "doubleFormOnly": true,
+          "likudOnly":true,
+
+        },
+        {
+          "name": "spouse_gender",
+          "heb": "מין בן/בת זוג",
+          "type": "signature",
+          "mark": "x",
+          "x": 430,
+          "y": 815,
+          "size": 40,
+          "width": 65,
+          "doubleFormOnly": true,
+          "likudOnly":true,
+
+        },
+
+
+        {
+          "name": "person_name",
+          "heb": "שם ושם משפחה",
+          "title": "פרטי חיוב הוראת קבע",
+          "type": "input",
+          "x": 670,
+          "y": 1190,
+          "size": 24,
+          "width": 290,
+          "randomFont": true,
+          "likudOnly":true,
+
+        },
+
+        {
+          "name": "person_id",
+          "heb": "תעודת זהות",
+          "type": "input",
+          "x": 335,
+          "y": 1190,
+          "size": 24,
+          "width": 300,
+          "spacing": 20,
+          "special":true,
+          "randomFont": true,
+          "validationType": "number",
+          "likudOnly":true,
+
+        },
+
+        {
+          "name": "person_dob_day",
+          "autoField": DAY_STR,
+          "heb": "יום בחודש",
+          "type": "input",
+          "x": 180,
+          "y": 1190,
+          "size": 24,
+          "width": 28,
+          "randomFont": true,
+          "likudOnly":true,
+
+        },
+        {
+          "name": "person_dob_month",
+          "autoField": MONTH_STR,
+          "heb": "מספר החודש",
+          "type": "input",
+          "x": 216,
+          "y": 1190,
+          "size": 24,
+          "width": 28,
+          "randomFont": true,
+          "likudOnly":true,
+
+        },
+        {
+          "name": "person_dob_year",
+          "autoField": YEAR_STR,
+          "heb": "תאיך",
+          "type": "input",
+          "x": 252,
+          "y": 1190,
+          "size": 24,
+          "width": 28,
+          "randomFont": true,
+          "likudOnly":true,
+
+        },
+        {
+          "name": "credit_number",
+          "heb": "כרטיס אשראי",
+          "type": "input",
+          "x": 505,
+          "y": 1110,
+          "size": 24,
+          "width": 500,
+          // AT - this is the correct size (font width : 600)
+          "spacing": 16,
+          "special":true,
+          "randomFont": true,
+          "likudOnly":true,
+
+        },
+
+        {
+          "name": "credit_date",
+          "heb": "תוקף כרטיס אשראי",
+          "type": "input",
+          "x": 355,
+          "y": 1110,
+          "size": 24,
+          "width": 90,
+          // AT 30-12-2017 date should be with less space
+          "spacing": 5,
+          "special":true,
+          "randomFont": true,
+          "likudOnly":true,
+
+        },
+        {
+          "name": "credit_type",
+          "heb": "סוג כרטיס אשראי (הקף בעיגול עם העכבר)",
+          "type": "signature",
+          "x": 20,
+          "y": 1100,
+          "size": 74,
+          "width": 240,
+          "likudOnly":true,
+
+        },
+
+        {
+          "name": "person_signature",
+          "heb": "חתימה לחיוב כרטיס אשראי",
+          "type": "signature",
+          "x": 40,
+          "y": 1163,
+          "size": 80,
+          "width": 130,
+          "likudOnly":true,
+        },
+
+      ];
+
+
+      window.onload = function () {
+        buildWebForm();
+        function randomFontGenerate(){
+          const fonts = [
+            'Anat',
+            //'Aya',
+            //'Einat4',
+            //'Einat5',
+            //'Liran',
+            //'Razi',
+            //'Yair',
+            //'Yariv',
+            // 'Yotam',
+            'Dafi',
+            'Eyal',
+            'Hadar',
+            'Noa',
+            'Ori',
+            'Rona',
+            'ShaharGLRegular'
+          ];
+          const fontsWithoutEnglishLetters = [
+            'GveretLevin',
+            'DanaYad',
+          ];
+          const index = Math.floor((Math.random() * fonts.length));
+          return  fonts[index];
         }
 
-        Pad.prototype.init = function () {
-            this.eraseButton = document.createElement("button");
-            this.eraseButton.textContent = "Erase";
-            this.canvas.parentElement.appendChild(this.eraseButton);
+        // AT 3-1-2017 in case of GveretLevin or DanaYad we will use Pangolin font
+        function IsFontWithoutEnglishLetters(fontname) {
+          const fontsWithoutEnglishLetters = [
+            'GveretLevin',
+            'DanaYad',
+          ];
 
-            this.eraseButton.addEventListener("click", (function (e) {
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            }).bind(this));
-
-            this.ctx = this.canvas.getContext("2d");
-
-            this.canvas.addEventListener("mousemove", (function (e) {
-                this.findxy('move', e)
-            }).bind(this), false);
-            this.canvas.addEventListener("mousedown", (function (e) {
-                this.findxy('down', e)
-            }).bind(this), false);
-            this.canvas.addEventListener("mouseup", (function (e) {
-                this.findxy('up', e)
-            }).bind(this), false);
-            this.canvas.addEventListener("mouseout", (function (e) {
-                this.findxy('out', e)
-            }).bind(this), false);
-        };
-
-        Pad.prototype.draw = function () {
-            this.ctx.strokeStyle = "black";
-            //this.ctx.lineWidth = 2 + 5 / Math.sqrt((this.currY - this.prevY) * (this.currY - this.prevY) + (this.currX - this.prevX) * (this.currX - this.prevX));
-            this.ctx.lineWidth = 2;
-
-            this.ctx.beginPath();
-            this.ctx.moveTo(this.prevX, this.prevY);
-            this.ctx.lineTo(this.currX, this.currY);
-            this.ctx.stroke();
-            this.ctx.closePath();
-        };
-
-        Pad.prototype.erase = function () {
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        };
-
-        Pad.prototype.findxy = function (res, e) {
-            if (res == 'down') {
-                this.prevX = this.currX;
-                this.prevY = this.currY;
-                this.currX = e.offsetX;
-                this.currY = e.offsetY;
-
-                this.flag = true;
-                this.dot_flag = true;
-                if (this.dot_flag) {
-                    this.ctx.beginPath();
-                    this.ctx.fillStyle = this.fillStyle;
-                    //this.ctx.fillRect(this.currX, this.currY, 2, 2);
-                    this.ctx.closePath();
-                    this.dot_flag = false;
-                }
+          for (var i = 0; i < fontsWithoutEnglishLetters.length; i++) {
+            if (fontsWithoutEnglishLetters[i] == fontname)
+            {
+              return true;
             }
-            if (res == 'up' || res == "out") {
-                this.flag = false;
-            }
-            if (res == 'move') {
-
-                if (this.flag) {
-                    this.prevX = this.currX;
-                    this.prevY = this.currY;
-                    this.currX = e.offsetX;
-                    this.currY = e.offsetY;
-                    this.draw();
-                }
-            }
-
-        };
-
-
-        var fields = [
-            {
-               "name": "date",
-                "type": "input",
-                "x": 30,
-                "y": 120,
-                "size": 24,
-                "width": 140,
-                "randomFont": true
-
-            },
-
-            {
-                "name": "id",
-                "type": "input",
-                "x": 790,
-                "y": 355,
-                "size": 24,
-                "width": 280,
-				// AT - this is the correct size (font width : 600)
-                "spacing": 16,
-                "special":true,
-                "randomFont": true
-
-            },
-            {
-                "name": "family_name",
-                "type": "input",
-                "x": 400,
-                "y": 355,
-                "size": 24,
-                "width": 280,
-                // AT - this is the correct size for text (font width : 900)
-                "spacing": 2,
-                "randomFont": true
-
-            },
-            {
-                "name": "first_name",
-                "type": "input",
-                "x": 30,
-                "y": 355,
-                "size": 24,
-                "width": 280,
-                // AT - this is the correct size for text (font width : 900)
-                "spacing": 2,
-                "randomFont": true
-
-            },
-            {
-                "name": "father_name",
-                "type": "input",
-                "x": 885,
-                "y": 420,
-                "size": 24,
-                "width": 162,
-                "randomFont": true
-
-            },
-            {
-                "name": "dob_day",
-                "type": "input",
-                "x": 700,
-                "y": 420,
-                "size": 24,
-                "width": 28,
-                "randomFont": true
-
-
-            },
-            {
-                "name": "dob_month",
-                "type": "input",
-                "x": 730,
-                "y": 420,
-                "size": 24,
-                "width": 28,
-                "randomFont": true
-
-            },
-            {
-                "name": "dob_year",
-                "type": "input",
-                "x": 760,
-                "y": 420,
-                "size": 24,
-                "width": 28,
-                "randomFont": true
-
-
-            },
-            {
-                "name": "homeland",
-                "type": "input",
-                "x": 200,
-                "y": 420,
-                "size": 24,
-                "width": 140,
-                "randomFont": true
-
-            },
-            {
-                "name": "immigration_year",
-                "type": "input",
-                "x": 30,
-                "y": 420,
-                "size": 24,
-                "width": 80,
-                "randomFont": true
-
-            },
-
-            {
-                "name": "address",
-                "type": "input",
-                "x": 605,
-                "y": 485,
-                "size": 24,
-                "width": 440,
-                "randomFont": true
-
-            },
-
-            {
-                "name": "city",
-                "type": "input",
-                "x": 305,
-                "y": 485,
-                "size": 24,
-                "width": 240,
-                "randomFont": true
-
-            },
-
-            {
-                "name": "zip",
-                "type": "input",
-                "x": 40,
-                "y": 485,
-                "size": 24,
-                "width": 180,
-                "special":true,
-                "randomFont": true
-            },
-
-            {
-                "name": "mobile_phone",
-                "type": "input",
-                "x": 800,
-                "y": 546,
-                "size": 24,
-                "width": 200,
-				// AT - this is the correct size for phone (font width : 600)
-                "spacing": 5,
-                "randomFont": true
-
-
-            },
-            {
-                "name": "work_phone",
-                "type": "input",
-                "x": 420,
-                "y": 546,
-                "size": 24,
-                "width": 200,
-				// AT - this is the correct size for phone (font width : 600)
-                "spacing": 5,
-                "randomFont": true
-
-            },
-
-            {
-                "name": "home_phone",
-                "type": "input",
-                "x": 80,
-                "y": 546,
-                "size": 24,
-                "width": 200,
-				// AT - this is the correct size for phone (font width : 600)
-                "spacing": 5,
-                "randomFont": true
-
-            },
-
-            {
-                "name": "email_username",
-                "type": "input",
-                "x": 315,
-                "y": 614,
-                "size": 24,
-                "width": 237,
-				// AT 30-12-2017 add ame font to mail
-                "randomFont": true
-
-            },
-
-            {
-                "name": "email_provider",
-                "type": "input",
-                "x": 600,
-                "y": 614,
-                "size": 24,
-                "width": 300,
-                "align": "left",
-				// AT 30-12-2017 add ame font to mail
-                "randomFont": true
-
-            },
-
-            {
-                "name": "signature",
-                "type": "signature",
-                "x": 40,
-                "y": 590,
-                "size": 114,
-                "width": 200,
-
-            },
-
-            {
-                "name": "status",
-                "type": "signature",
-                "mark": "o",
-                "x": 530,
-                "y": 420,
-                "size": 30,
-                "width": 60,
-
-
-            },
-            {
-                "name": "gender",
-                "type": "signature",
-                "mark": "x",
-                "x": 430,
-                "y": 420,
-                "size": 30,
-                "width": 60,
-
-            },
-            {
-                "name": "spouse_id",
-                "type": "input",
-                "x": 790,
-                "y": 755,
-                "size": 24,
-                "width": 280,
-                "spacing": 19,
-                "special":true,
-                "randomFont": true
-            },
-            {
-                "name": "spouse_family_name",
-                "type": "input",
-                "x": 400,
-                "y": 755,
-                "size": 24,
-                "width": 280,
-                "randomFont": true
-            },
-            {
-                "name": "spouse_first_name",
-                "type": "input",
-                "x": 30,
-                "y": 755,
-                "size": 24,
-                "width": 280,
-                "randomFont": true
-            },
-            {
-                "name": "spouse_father_name",
-                "type": "input",
-                "x": 885,
-                "y": 820,
-                "size": 24,
-                "width": 162,
-                "randomFont": true
-            },
-            {
-                "name": "spouse_dob_day",
-                "type": "input",
-                "x": 700,
-                "y": 820,
-                "size": 24,
-                "width": 28,
-                "randomFont": true
-
-            },
-            {
-                "name": "spouse_dob_month",
-                "type": "input",
-                "x": 730,
-                "y": 820,
-                "size": 24,
-                "width": 28,
-                "randomFont": true
-
-            },
-            {
-                "name": "spouse_dob_year",
-                "type": "input",
-                "x": 760,
-                "y": 820,
-                "size": 24,
-                "width": 28,
-                "randomFont": true
-
-            },
-            {
-                "name": "spouse_homeland",
-                "type": "input",
-                "x": 200,
-                "y": 820,
-                "size": 24,
-                "width": 140,
-                "randomFont": true
-            },
-            {
-                "name": "spouse_immigration_year",
-                "type": "input",
-                "x": 30,
-                "y": 820,
-                "size": 24,
-                "width": 80,
-                "randomFont": true
-            },
-
-            {
-                "name": "spouse_mobile_phone",
-                "type": "input",
-                "x": 800,
-                "y": 886,
-                "size": 24,
-                "width": 200,
-				// AT - this is the correct size for phone (font width : 600)
-                "spacing": 5,
-                "randomFont": true
-            },
-            {
-                "name": "spouse_work_phone",
-                "type": "input",
-                "x": 420,
-                "y": 886,
-                "size": 24,
-                "width": 200,
-				// AT - this is the correct size for phone (font width : 600)
-                "spacing": 5,
-                "randomFont": true
-            },
-
-            {
-                "name": "spouse_home_phone",
-                "type": "input",
-                "x": 80,
-                "y": 886,
-                "size": 24,
-                "width": 200,
-				// AT - this is the correct size for phone (font width : 600)
-                "spacing": 5,
-                "randomFont": true
-            },
-
-            {
-                "name": "spouse_email_username",
-                "type": "input",
-                "x": 315,
-                "y": 946,
-                "size": 24,
-                "width": 237,
-				// AT 30-12-2017 add random font to mail
-                "randomFont": true
-            },
-
-            {
-                "name": "spouse_email_provider",
-                "type": "input",
-                "x": 600,
-                "y": 946,
-                "size": 24,
-                "width": 300,
-                "align": "left",
-				// AT 30-12-2017 add random font to mail
-                "randomFont": true
-            },
-
-            {
-                "name": "spouse_signature",
-                "type": "signature",
-                "x": 40,
-                "y": 930,
-                "size": 114,
-                "width": 200
-            },
-            {
-                "name": "spouse_status",
-                "type": "signature",
-                "mark": "o",
-                "x": 530,
-                "y": 820,
-                "size": 30,
-                "width": 60
-
-            },
-            {
-                "name": "spouse_gender",
-                "type": "signature",
-                "mark": "x",
-                "x": 430,
-                "y": 820,
-                "size": 30,
-                "width": 60
-
-            },
-
-            {
-                "name": "person_name",
-                "type": "input",
-                "x": 670,
-                "y": 1190,
-                "size": 24,
-                "width": 290,
-                "randomFont": true
-
-            },
-
-            {
-                "name": "person_id",
-                "type": "input",
-                "x": 335,
-                "y": 1190,
-                "size": 24,
-                "width": 300,
-                "spacing": 20,
-                "special":true,
-                "randomFont": true
-
-            },
-
-                        {
-                "name": "person_dob_day",
-                "type": "input",
-                "x": 180,
-                "y": 1190,
-                "size": 24,
-                "width": 28,
-                "randomFont": true
-
-            },
-            {
-                "name": "person_dob_month",
-                "type": "input",
-                "x": 216,
-                "y": 1190,
-                "size": 24,
-                "width": 28,
-                "randomFont": true
-
-            },
-            {
-                "name": "person_dob_year",
-                "type": "input",
-                "x": 252,
-                "y": 1190,
-                "size": 24,
-                "width": 28,
-                "randomFont": true
-
-            },
-
-            {
-                "name": "person_signature",
-                "type": "signature",
-                "x": 40,
-                "y": 1190,
-                "size": 114,
-                "width": 120
-            },
-                {
-                "name": "credit_number",
-                "type": "input",
-                "x": 505,
-                "y": 1110,
-                "size": 24,
-                "width": 500,
-				// AT - this is the correct size (font width : 600)
-                "spacing": 16,
-                "special":true,
-                "randomFont": true
-
-            },
-
-            {
-                "name": "credit_date",
-                "type": "input",
-                "x": 355,
-                "y": 1110,
-                "size": 24,
-                "width": 90,
-				// AT 30-12-2017 date should be with less space
-                "spacing": 5,
-                "special":true,
-                "randomFont": true
-
-            },
-               {
-                "name": "credit_type",
-                "type": "signature",
-                "x": 40,
-                "y": 1110,
-                "size": 60,
-                "width": 220,
-
-            },
-
-        ];
-
-
-            window.onload = function () {
-            function randomFontGenerate(){
-                const fonts = [
-                    'Anat',
-                    'Aya',
-                    'Einat4',
-                    'Einat5',
-                    'Liran',
-                    'Razi',
-                    'Yair',
-                    'Yariv',
-                    'Yotam',
-                    'Dafi',
-                    'Eyal',
-                    'Hadar',
-                    'Noa',
-                    'Ori',
-                    'Rona',
-				    'ShaharGLRegular',
-                     'GveretLevin',
-                     'DanaYad',
-
-//                     'MichaelRegular',
-                    ];
-                const fontsWithoutEnglishLetters = [
-                    'GveretLevin',
-                    'DanaYad',
-                ];
-                const index = Math.floor((Math.random() * fonts.length));
-                return  fonts[index];
-                }
-
+          }
+          return false;
+        }
+        const randomFont = randomFontGenerate();
+        var formWrapper = document.querySelector("#form-wrapper");
+        document.querySelector("#font-preview").style.fontFamily = randomFont;
+
+
+        for (var i = 0; i < fields.length; i++) {
+          var field;
+
+          if (fields[i].type == "input") {
+            field = document.createElement("input");
+            field.className = "field-form";
+            field.style.fontSize = fields[i].size + "px";
             // AT 3-1-2017 in case of GveretLevin or DanaYad we will use Pangolin font
-            function IsFontWithoutEnglishLetters(fontname) {
-                const fontsWithoutEnglishLetters = [
-                    'GveretLevin',
-                    'DanaYad',
-                ];
-
-                for (var i = 0; i < fontsWithoutEnglishLetters.length; i++) {
-                    if (fontsWithoutEnglishLetters[i] == fontname)
-                    {
-                        return true;
-                    }
-                }
-                return false;
+            if (fields[i].name.indexOf("email") > -1 && IsFontWithoutEnglishLetters(randomFont)) {
+              font = "Pangolin"
             }
-            const randomFont = randomFontGenerate();
-            var formWrapper = document.querySelector("#form-wrapper");
-
-
-            for (var i = 0; i < fields.length; i++) {
-                var field;
-
-                if (fields[i].type == "input") {
-                    field = document.createElement("input");
-                    field.className = "field-form";
-                    field.style.fontSize = fields[i].size + "px";
-                    // AT 3-1-2017 in case of GveretLevin or DanaYad we will use Pangolin font
-                    if (fields[i].name.indexOf("email") > -1 && IsFontWithoutEnglishLetters(randomFont)) {
-                            font = "Pangolin"
-                    }
-                    else if (fields[i].randomFont){
-                        field.style.fontFamily = randomFont;
-                    }
-                    field.style.top = fields[i].y;
-                    field.style.left = fields[i].x;
-                    field.style.width = fields[i].width;
-                    if (fields[i].spacing) {
-                        field.style["letter-spacing"] = fields[i].spacing;
-                    }
-                    if (fields[i].align) {
-                        field.style["text-align"] = fields[i].align;
-                    }
-
-                    fields[i].field = field;
-
-
-                    formWrapper.appendChild(field);
-
-                } else if (fields[i].type == "signature") {
-
-                    field = document.createElement("canvas");
-                    field.className = "field-form";
-                    field.style.top = fields[i].y;
-                    field.style.left = fields[i].x;
-                    field.style.width = fields[i].width;
-                    field.style.height = fields[i].size;
-                    field.width = fields[i].width;
-                    field.height = fields[i].size;
-                    fields[i].field = field;
-                    formWrapper.appendChild(field);
-
-                    var signaturePad = new Pad(field);
-
-                    signaturePad.init();
-                } else if (fields[i].type == "option") {
-                    field = document.createElement("div");
-                    field.className = "field-form";
-                    field.style.top = fields[i].y;
-                    field.style.left = fields[i].x;
-                    field.style.width = fields[i].width + "px";
-                    field.style.height = fields[i].size + "px";
-                    field.style.fontSize = fields[i].size + "px";
-                    field.style.lineHeight = fields[i].size + "px";
-                    fields[i].field = field;
-
-                    var selection = document.createElement("div");
-                    selection.className = "selection";
-                    selection.textContent = fields[i].mark;
-
-                    field.appendChild(selection);
-
-                    formWrapper.appendChild(field);
-
-                    field.addEventListener("click", function (e) {
-                        var selection = this.querySelector("div.selection");
-                        selection.style.left = e.offsetX;
-                    });
-                }
+            else if (fields[i].randomFont){
+              field.style.fontFamily = randomFont;
+            }
+            field.style.top = fields[i].y;
+            field.style.left = fields[i].x;
+            field.style.width = fields[i].width;
+            if (fields[i].spacing) {
+              field.style["letter-spacing"] = fields[i].spacing;
+            }
+            if (fields[i].align) {
+              field.style["text-align"] = fields[i].align;
             }
 
-            document.getElementById("save-button").addEventListener("click", function () {
-                var canvas = document.createElement("canvas");
-                var formImage = document.getElementById("form-image");
-                canvas.width = formImage.width;
-                canvas.height = formImage.height;
-
-                var ctx = canvas.getContext("2d");
-                ctx.drawImage(formImage, 0, 0, formImage.width, formImage.height);
-                ctx.direction = "rtl";
-                ctx.textAlign = "right";
-                ctx.textBaseline = "middle";
+            fields[i].field = field;
 
 
-                for (var i = 0; i < fields.length; i++) {
-				    // AT 29-12-2017 for the id number
-                    var offset = fields[i].width - 15;
-					// AT 30-12-2017 lower the font
-                    var offset_y = 7
-                    var font = randomFont
-                    ctx.textAlign = "right";
-                    if (fields[i].type == "input") {
-                        if (fields[i].name.indexOf("email") > -1) {
-                            offset_y = 10
-                            // AT 29-12-2017 handle the English's letters
-                            //font = "Pangolin"
-                            if (fields[i].name == 'email_provider' || fields[i].name == 'spouse_email_provider') {
-                                ctx.textAlign = "left";
+            formWrapper.appendChild(field);
 
-                                offset = 0;
-                            }
-                        }
+          } else if (fields[i].type == "signature") {
 
+            field = document.createElement("canvas");
+            field.className = "field-form";
+            field.style.top = fields[i].y;
+            field.style.left = fields[i].x;
+            field.style.width = fields[i].width;
+            field.style.height = fields[i].size;
+            field.width = fields[i].width;
+            field.height = fields[i].size;
+            fields[i].field = field;
+            formWrapper.appendChild(field);
+          } else if (fields[i].type == "option") {
+            field = document.createElement("div");
+            field.className = "field-form";
+            field.style.top = fields[i].y;
+            field.style.left = fields[i].x;
+            field.style.width = fields[i].width + "px";
+            field.style.height = fields[i].size + "px";
+            field.style.fontSize = fields[i].size + "px";
+            field.style.lineHeight = fields[i].size + "px";
+            fields[i].field = field;
 
+            var selection = document.createElement("div");
+            selection.className = "selection";
+            selection.textContent = fields[i].mark;
 
-						// AT 30-12-2017 fix the date size problem because the letterSpacing is not working when print to pdf
-						if (fields[i].name == 'credit_date' || fields[i].name == 'date' || fields[i].name.indexOf("day") > -1 || fields[i].name.indexOf("month") > -1  || fields[i].name.indexOf("year") > -1 ) {
-                                offset = offset + 15;
-                            }
+            field.appendChild(selection);
 
-                        var value;
+            formWrapper.appendChild(field);
 
-						if (fields[i].spacing) {
-							console.log(" fields[i].spacing: " +  fields[i].spacing);
-							// AT - this is the correct size
-							ctx.letterSpacing = fields[i].spacing;
-							ctx.spacing = fields[i].spacing;
-							//ctx.style["letter-spacing"] = fields[i].spacing;
-							console.log(" fields[i].name: " +  fields[i].name);
-							console.log(" ctx.letterSpacing: " +  ctx.letterSpacing);
-							console.log(" ctx.spacing: " +  ctx.spacing);
-						}
-
-                        if(fields[i].special){
-                            value = fields[i].field.value.split("").join(String.fromCharCode(8199));
-                            ctx.font = fields[i].size + 2 +"px " + font;
-
-							ctx.font = fields[i].size + 2 +"px " + font;
-
-                        }else{
-                            value = fields[i].field.value;
-                            ctx.font = fields[i].size +"px " + font;
-							 }
-
-                        ctx.fillText(value, fields[i].x + offset, fields[i].y + fields[i].size / 2 + offset_y);
-                    } else if (fields[i].type == "signature") {
-                            ctx.drawImage(fields[i].field, fields[i].x, fields[i].y);
-                    } else if (fields[i].type == "option") {
-                        font = "Pangolin";
-                        ctx.font = fields[i].size + "px " + font;
-                        if (fields[i].field.children[0].style.left) {
-                            offset = 9+parseInt(fields[i].field.children[0].style.left.replace('px',''));
-                        }
-
-                        ctx.fillText(fields[i].mark, fields[i].x + offset, fields[i].y + 3 + fields[i].size / 2);
-
-
-                    }
-
-                }
-
-                var imgData = canvas.toDataURL("image/jpeg", 1.0);
-                var pdf = new jsPDF("p", "px", "a4",true);
-                var margin = 0;
-
-                var width = pdf.internal.pageSize.width - margin * 2;
-                var height = pdf.internal.pageSize.height - margin * 2;
-
-                var pdfRatio = height / width;
-                var currentRatio = canvas.height / canvas.width;
-
-                console.log("page width: " + width);
-                console.log("page height: " + height);
-                console.log("image width: " + canvas.width);
-                console.log("image height: " + canvas.height);
-                console.log("page ratio: " + pdfRatio);
-                console.log("image ratio: " + currentRatio);
-
-                if (pdfRatio > currentRatio) {
-                    pdf.addImage(imgData, 'JPEG', margin, margin, width, width * currentRatio,'','FAST');
-                } else {
-                    pdf.addImage(imgData, 'JPEG', margin + (width - height / currentRatio) / 2, margin, height / currentRatio, height,'','FAST');
-                }
-                const postMessageValues = extractPostMessageValues(fields);
-                try {
-                    var pdfToServer = pdf.output('blob');
-                    //console.log('post to parent',postMessageValues) ;
-                    postToParent(pdfToServer, postMessageValues);
-                }
-                catch (e) {
-                    console.log(e);            
-                }
-                
-                // pdf.save(`${postMessageValues.email}-${postMessageValues.teudatZehutValue}`);
+            field.addEventListener("click", function (e) {
+              var selection = this.querySelector("div.selection");
+              selection.style.left = e.offsetX;
             });
+          }
+          field.id = fields[i].name;
         }
 
-        function extractPostMessageValues (fields){
-                var postMessageValues  = {
-                  teudatZehutValue : 'no_id',
-                  firstNameValue: '',
-                  familyNameValue : '',
-                  email : 'no_email',
-                  mobilePhone: '',
-                  spouseFirstName : '',
-                  spouseFamilyName : '',
-                  spouseZehutValue : '',
-                  spouseMobilePhone : '',
-                  spouseEmail :'',
-                };
+        document.getElementById("save-button").addEventListener("click", function () {
+          if (!validateForm()) {
+            return;
+          }
 
-                 var emailUserNameValue = 'none';
-                 var emailProviderValue = 'none';
-                 var spouseEmailUsernameValue = 'none';
-                 var spouseEmailProviderValue = 'none';
+          fillCanvasForm();
 
-                fields.forEach(
-                (field) => {
-                    if (isEmailUserNameFieldValue(field)){
-                         emailUserNameValue =  field.field.value;
-                    }
+          var canvas = document.createElement("canvas");
+          var formImage = document.getElementById("form-image");
+          canvas.width = formImage.width;
+          canvas.height = formImage.height;
 
-                    if(isEmailProviderFieldValue(field)) {
-                          emailProviderValue =  field.field.value;
-                    }
+          var ctx = canvas.getContext("2d");
+          ctx.drawImage(formImage, 0, 0, formImage.width, formImage.height);
+          ctx.direction = "rtl";
+          ctx.textAlign = "right";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = penColor;
 
-                    if(isSpouseEmailUserNameValue(field)) {
-                         spouseEmailUsernameValue =  field.field.value;
-                    }
 
-                    if(isSpouseEmailProviderValue(field)) {
-                         spouseEmailProviderValue =  field.field.value;
-                    }
+          for (var i = 0; i < fields.length; i++) {
+            // AT 29-12-2017 for the id number
+            var offset = fields[i].width - 15;
+            // AT 30-12-2017 lower the font
+            var offset_y = 7;
+            var font = randomFont;
+            ctx.textAlign = "right";
+            if (fields[i].type == "input") {
+              if (fields[i].name.indexOf("email") > -1) {
+                offset_y = 10;
+                // AT 29-12-2017 handle the English's letters
+                //font = "Pangolin"
+                if (fields[i].name == 'email_provider' || fields[i].name == 'spouse_email_provider') {
+                  ctx.textAlign = "left";
 
-                    if(isTeudatZehutFieldValue(field)) {
-                         postMessageValues.teudatZehutValue =  field.field.value;
-                    }
-
-                    if(isFirstNameFieldValue(field)) {
-                         postMessageValues.firstNameValue =  field.field.value;
-                    }
-
-                    if(isFamilyNameFieldValue(field)) {
-                         postMessageValues.familyNameValue =  field.field.value ;
-                    }
-
-                    if(isMobilePhoneFieldValue(field)) {
-                         postMessageValues.mobilePhone =  field.field.value;
-                    }
-
-                     postMessageValues.email =  emailUserNameValue.length > 1 &&  emailProviderValue.length > 1 ?
-                    `${ emailUserNameValue}@${ emailProviderValue}`: 'no_email';
-
-                    if(isSpouseIdValue(field)) {
-                         postMessageValues.spouseZehutValue =  field.field.value;
-                    }
-
-                    if(isSpouseFirstNameValue(field)) {
-                         postMessageValues.spouseFirstName =  field.field.value;
-                    }
-
-                    if(isSpouseFamilyNameValue(field)) {
-                             postMessageValues.spouseFamilyName =  field.field.value;
-                    }
-
-                    if(isSpouseMobilePhoneValue(field)) {
-                             postMessageValues.spouseMobilePhone =  field.field.value ;
-                    }
-
-                     postMessageValues.spouseEmail =
-                     spouseEmailUsernameValue.length > 1 &&  spouseEmailProviderValue.length > 1 ?
-                     `${ spouseEmailUsernameValue}@${ spouseEmailProviderValue}` : '';
+                  offset = 0;
                 }
-                );
-
-                return  postMessageValues;
+              }
 
 
-                function isTeudatZehutFieldValue(fieldItem){
-                    return fieldItem.name.length ===2 && fieldItem.name.indexOf("id") > -1 && fieldItem.field.value.length >4;
-                }
 
-                function isFirstNameFieldValue(fieldItem){
-                    return fieldItem.name === 'first_name' && fieldItem.field.value.length > 1;
-                }
+              // AT 30-12-2017 fix the date size problem because the letterSpacing is not working when print to pdf
+              if (fields[i].name == 'credit_date' || fields[i].name == 'date' || fields[i].name.indexOf("day") > -1 || fields[i].name.indexOf("month") > -1  || fields[i].name.indexOf("year") > -1 ) {
+                offset = offset + 15;
+              }
 
-                function isFamilyNameFieldValue(fieldItem){
-                    return fieldItem.name === 'family_name' && fieldItem.field.value.length > 1;
-                }
+              var value;
 
-                function isEmailUserNameFieldValue(fieldItem){
-                    return fieldItem.name === 'email_username' && fieldItem.field.value.length > 1;
-                }
+              if (fields[i].spacing) {
+                console.log(" fields[i].spacing: " +  fields[i].spacing);
+                // AT - this is the correct size
+                ctx.letterSpacing = fields[i].spacing;
+                ctx.spacing = fields[i].spacing;
+                //ctx.style["letter-spacing"] = fields[i].spacing;
+                console.log(" fields[i].name: " +  fields[i].name);
+                console.log(" ctx.letterSpacing: " +  ctx.letterSpacing);
+                console.log(" ctx.spacing: " +  ctx.spacing);
+              }
 
-                function isEmailProviderFieldValue(fieldItem){
-                    return fieldItem.name === 'email_provider' && fieldItem.field.value.length > 1;
-                }
 
-                function isMobilePhoneFieldValue(fieldItem){
-                    return fieldItem.name === 'mobile_phone' && fieldItem.field.value.length > 1;
-                }
+              if(fields[i].special){
+                value = fields[i].field.value.split("").join(String.fromCharCode(160));
+                ctx.font = fields[i].size + 2 +"px " + font;
 
-                function isSpouseFirstNameValue(fieldItem){
-                    return fieldItem.name === 'spouse_first_name' && fieldItem.field.value.length > 1;
-                }
+              }else{
+                value = fields[i].field.value;
+                ctx.font = fields[i].size +"px " + font;
+              }
 
-                function isSpouseFamilyNameValue(fieldItem){
-                    return fieldItem.name === 'spouse_family_name' && fieldItem.field.value.length > 1;
-                }
+              ctx.fillText(value.toLowerCase(), fields[i].x + offset, fields[i].y + fields[i].size / 2 + offset_y);
+            } else if (fields[i].type == "signature") {
+              ctx.drawImage(fields[i].field, fields[i].x, fields[i].y);
+            } else if (fields[i].type == "option") {
+              font = "Pangolin";
+              ctx.font = fields[i].size + "px " + font;
+              if (fields[i].field.children[0].style.left) {
+                offset = 9+parseInt(fields[i].field.children[0].style.left.replace('px',''));
+              }
 
-                function isSpouseIdValue(fieldItem){
-                    return fieldItem.name === 'spouse_id' && fieldItem.field.value.length > 1;
-                }
+              ctx.fillText(fields[i].mark, fields[i].x + offset, fields[i].y + 3 + fields[i].size / 2);
 
-                function isSpouseMobilePhoneValue(fieldItem){
-                    return fieldItem.name === 'spouse_mobile_phone' && fieldItem.field.value.length > 1;
-                }
 
-                function isSpouseEmailUserNameValue(fieldItem){
-                    return fieldItem.name === 'spouse_email_username' && fieldItem.field.value.length > 1;
-                }
+            }
 
-               function isSpouseEmailProviderValue(fieldItem){
-                    return fieldItem.name === 'spouse_email_provider' && fieldItem.field.value.length > 1;
-               }
+          }
+
+          var imgData = canvas.toDataURL("image/jpeg", 1.0);
+          var pdf = new jsPDF("p", "px", "a4",true);
+          var margin = 0;
+
+          var width = pdf.internal.pageSize.width - margin * 2;
+          var height = pdf.internal.pageSize.height - margin * 2;
+
+          var pdfRatio = height / width;
+          var currentRatio = canvas.height / canvas.width;
+
+          console.log("page width: " + width);
+          console.log("page height: " + height);
+          console.log("image width: " + canvas.width);
+          console.log("image height: " + canvas.height);
+          console.log("page ratio: " + pdfRatio);
+          console.log("image ratio: " + currentRatio);
+
+          if (pdfRatio > currentRatio) {
+            pdf.addImage(imgData, 'JPEG', margin, margin, width, width * currentRatio,'','FAST');
+          } else {
+            pdf.addImage(imgData, 'JPEG', margin + (width - height / currentRatio) / 2, margin, height / currentRatio, height,'','FAST');
+          }
+          const postMessageValues = extractPostMessageValues(fields, font);
+          try {
+            var pdfToServer = pdf.output('blob');
+            if (isDebug) {
+              console.log('post to parent', postMessageValues);
+            }
+            postToParent(pdfToServer, postMessageValues);
+          }
+          catch (e) {
+            console.log(e);
+          }
+
+          if (isDebug) {
+            pdf.output('save', 'file.pdf');
+          }
+        });
+      };
+
+      function extractPostMessageValues (fields , selectedFont){
+        var postMessageValues  = {
+          teudatZehutValue : 'no_id',
+          firstNameValue: '',
+          familyNameValue : '',
+          email : 'no_email',
+          mobilePhone: '',
+          spouseFirstName : '',
+          spouseFamilyName : '',
+          spouseZehutValue : '',
+          spouseMobilePhone : '',
+          spouseEmail :'',
+          facebookProfile: '',
+          spouseFacebookProfile: '',
+          whoSentYou: '',
+          selectedFont : selectedFont,
+          alreadyPakud : hideLikud
+
+        };
+
+        var emailUserNameValue = 'none';
+        var emailProviderValue = 'none';
+        var spouseEmailUsernameValue = 'none';
+        var spouseEmailProviderValue = 'none';
+
+        fields.forEach(
+          (field) => {
+            if (isEmailUserNameFieldValue(field)){
+              emailUserNameValue =  field.field.value.toLowerCase();
+            }
+
+            if(isEmailProviderFieldValue(field)) {
+              emailProviderValue =  field.field.value.toLowerCase();
+            }
+
+            if(isSpouseEmailUserNameValue(field)) {
+              spouseEmailUsernameValue =  field.field.value.toLowerCase();
+            }
+
+            if(isSpouseEmailProviderValue(field)) {
+              spouseEmailProviderValue =  field.field.value.toLowerCase();
+            }
+
+            if(isTeudatZehutFieldValue(field)) {
+              postMessageValues.teudatZehutValue =  field.field.value;
+            }
+
+            if(isFirstNameFieldValue(field)) {
+              postMessageValues.firstNameValue =  field.field.value;
+            }
+
+            if(isFamilyNameFieldValue(field)) {
+              postMessageValues.familyNameValue =  field.field.value ;
+            }
+
+            if(isMobilePhoneFieldValue(field)) {
+              postMessageValues.mobilePhone =  field.field.value;
+            }
+
+            postMessageValues.email =  emailUserNameValue.length > 1 &&  emailProviderValue.length > 1 ?
+              `${ emailUserNameValue}@${ emailProviderValue}`: 'no_email';
+
+            if(isSpouseIdValue(field)) {
+              postMessageValues.spouseZehutValue =  field.field.value;
+            }
+
+            if(isSpouseFirstNameValue(field)) {
+              postMessageValues.spouseFirstName =  field.field.value;
+            }
+
+            if(isSpouseFamilyNameValue(field)) {
+              postMessageValues.spouseFamilyName =  field.field.value;
+            }
+
+            if(isSpouseMobilePhoneValue(field)) {
+              postMessageValues.spouseMobilePhone =  field.field.value ;
+            }
+
+            if(isFacebookUrl(field)) {
+              postMessageValues.facebookProfile =  field.field.value ;
+            }
+
+            if(isWhoSentYou(field)) {
+             postMessageValues.whoSentYou =  field.field.value ;
+            }
+
+            if(isSpouseFacebookUrl(field)) {
+              postMessageValues.spouseFacebookProfile =  field.field.value ;
+            }
+
+            postMessageValues.spouseEmail =
+              spouseEmailUsernameValue.length > 1 &&  spouseEmailProviderValue.length > 1 ?
+                `${ spouseEmailUsernameValue}@${ spouseEmailProviderValue}` : '';
+          }
+        );
+
+        return  postMessageValues;
+
+
+        function isTeudatZehutFieldValue(fieldItem){
+          return fieldItem.name.length ===2 && fieldItem.name.indexOf("id") > -1 && fieldItem.field.value.length >4;
         }
-        function postToParent(pdf , postValues){
-            fileToBase64(pdf, (pdf) => {
-                parent.postMessage( {pdf:pdf, tz:postValues.teudatZehutValue , postValues: postValues},
-                "https://www-newlikud-org.filesusr.com")
-            });
+
+        function isFirstNameFieldValue(fieldItem){
+          return fieldItem.name === 'first_name' && fieldItem.field.value.length > 1;
         }
 
-        function fileToBase64(file , callback) {
-                var reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload =  (fileLoadedEvent) => {
-                    callback(fileLoadedEvent.target.result);
-                };
-                reader.onerror =  (error) => {
-                    console.log('Error: ', error);
-                };
+        function isFamilyNameFieldValue(fieldItem){
+          return fieldItem.name === 'family_name' && fieldItem.field.value.length > 1;
         }
+
+        function isEmailUserNameFieldValue(fieldItem){
+          return fieldItem.name === 'email_username' && fieldItem.field.value.length > 1;
+        }
+
+        function isEmailProviderFieldValue(fieldItem){
+          return fieldItem.name === 'email_provider' && fieldItem.field.value.length > 1;
+        }
+
+        function isMobilePhoneFieldValue(fieldItem){
+          return fieldItem.name === 'mobile_phone' && fieldItem.field.value.length > 1;
+        }
+
+        function isSpouseFirstNameValue(fieldItem){
+          return fieldItem.name === 'spouse_first_name' && fieldItem.field.value.length > 1;
+        }
+
+        function isSpouseFamilyNameValue(fieldItem){
+          return fieldItem.name === 'spouse_family_name' && fieldItem.field.value.length > 1;
+        }
+
+        function isSpouseIdValue(fieldItem){
+          return fieldItem.name === 'spouse_id' && fieldItem.field.value.length > 1;
+        }
+
+        function isSpouseMobilePhoneValue(fieldItem){
+          return fieldItem.name === 'spouse_mobile_phone' && fieldItem.field.value.length > 1;
+        }
+
+        function isSpouseEmailUserNameValue(fieldItem){
+          return fieldItem.name === 'spouse_email_username' && fieldItem.field.value.length > 1;
+        }
+
+        function isSpouseEmailProviderValue(fieldItem){
+          return fieldItem.name === 'spouse_email_provider' && fieldItem.field.value.length > 1;
+        }
+
+        function isFacebookUrl(fieldItem){
+          return fieldItem.name === 'facebook_profile_url' && fieldItem.field.value.length > 1;
+        }
+
+        function isWhoSentYou(fieldItem){
+          return fieldItem.name === 'who_sent_you' && fieldItem.field.value.length > 1;
+        }
+
+        function isSpouseFacebookUrl(fieldItem){
+          return fieldItem.name === 'spouse_facebook_profile_url' && fieldItem.field.value.length > 1;
+        }
+
+      }
+      function postToParent(pdf , postValues){
+        fileToBase64(pdf, (pdf) => {
+          parent.postMessage( {pdf:pdf, tz:postValues.teudatZehutValue , postValues: postValues},
+            "https://www-newlikud-org.filesusr.com")
+        });
+      }
+
+      function fileToBase64(file , callback) {
+        var reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload =  (fileLoadedEvent) => {
+          callback(fileLoadedEvent.target.result);
+        };
+        reader.onerror =  (error) => {
+          console.log('Error: ', error);
+        };
+      }
     </script>
 
 </head>
 
 <body>
-<nav class="navbar navbar-default navbar-fixed-top">
-    <div class="container">
-        <div class="navbar-header">
-            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
-                    data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
-                <span class="sr-only">Toggle navigation</span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-                <span class="icon-bar"></span>
-            </button>
-            <button type="button" class="btn btn-default navbar-btn btn-primary" id="save-button">שלח</button>
-
+<div class="container" style="margin-top: 50px">
+    <div class="form-group row">
+        <div class="col-xs-11">
+            המידע, הנתונים ופרטי החיוב הכלולים בטופס הזה, ישמשו לצורך הפנייה לליכוד באמצעות טופס רשמי, והחתימה תשמש גם כחתימה על הטופס הרשמי. <br/>
+            פרט לכך ישמשו הנתונים לצורך שמירת קשר עימך ולטובת העברת הודעות חשובות לרבות בנוגע למצב ההתפקדות. אין חובה למסור את הנתונים. הנתונים לא יועברו לכל גורם אחר.
         </div>
     </div>
-</nav>
+    <div class="form-group row">
+        <div class="col-xs-3">
 
-<div class="container" style="margin-top: 50px">
+        </div>
+        <div class="col-xs-12">
+            <div>
+                <label>
+                    <input type="radio" name="double-form-radio" checked="" value="single" class="required" title="טופס ליחיד">
+                    טופס ליחיד
+                </label>
+                <br/>
+                <label>
+                    <input type="radio" name="double-form-radio" value="double" class="required" title="טופס לזוג">
+                    טופס לזוג
+                </label>
+                <br/>
+                <br/>
+            </div>
+        </div>
+    </div>
+    <form id="web-form">
+
+    </form>
+</div>
+
+<div class="container" style="margin-top: 50px; opacity: 0.0; width: 1170px; position: absolute; top: 0;z-index: -1">
 
     <div id="form-wrapper">
         <img id="form-image" src="register-to-likud.png" style="width: 100%"/>
     </div>
+    <div id="font-preview">font preview</div>
 
 </div>
 
