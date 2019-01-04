@@ -286,7 +286,7 @@ function buildWebForm() {
 
   initializePads();
   initializeDoubleFormRadio();
-  initializePakudCheckBox();
+  //initializePakudCheckBox();
   initializeValidation();
   showOrHideFields();
   initTestsMode();
